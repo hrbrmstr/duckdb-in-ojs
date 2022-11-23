@@ -1,0 +1,64 @@
+---
+title: "DuckDB In OJS BLOCKS!"
+author: "boB Rudis"
+---
+
+See the Observable version here: <https://observablehq.com/@hrbrmstr/duckdb-observable-companion-to-the-quarto-version>
+
+Observable recently added support for the WASMified DuckDB. This feature will make data wrangling more accessible and will also facilitate deeper data exploration and empower folks to create even richer data visualizations.
+
+Let's pull in some local data files:
+
+```{ojs}
+db = DuckDBClient.of({ 
+	impacts: await FileAttachment("earth-impact-craters.csv").csv(),
+	migration: await FileAttachment("migration.csv").csv()
+})
+```
+
+You will eventually not have to do `await` and `.csv()` on the Quarto size (it's not needed in Observable-proper).
+
+We can do wrangle thosse impacts to see which ones landed down under.
+
+```{ojs}
+aus_impacts = db.sql`
+SELECT 
+  * 
+FROM 
+  impacts 
+WHERE 
+  country == 'Australia'
+`
+```
+
+```{ojs}
+viewof table = Inputs.table(aus_impacts)
+```
+
+The results of SQL queries can be used like regular JavaScript objects, too (NOTE that I'm doing data conversion after the fact b/c the latest DuckDB bits haven't made it into the latest Quarto downloads).
+
+```{ojs}
+gua = db.sql`SELECT * FROM migration WHERE source = 'Guatemala' ORDER BY yearmon`
+```
+
+```{ojs}
+gua
+```
+
+```{ojs}
+Plot.plot({
+  grid: true,
+  marginLeft: 60,
+  marks: [
+    Plot.ruleY([0]),
+    Plot.lineY(gua.map(d => { // this won't be necessary soon 
+			d.yearmon = new Date(d.yearmon);
+			d.n = +d.n;
+			return(d)
+		}), {
+      x: "yearmon",
+      y: "n"
+    }),
+	]
+})
+```
